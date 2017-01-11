@@ -7,6 +7,7 @@ action=$1
 domain=$2
 rootDir=$3
 owner=$(who am i | awk '{print $1}')
+owngroup=$(id -g -n $owner)
 email='webmaster@localhost'
 sitesEnable='/etc/apache2/sites-enabled/'
 sitesAvailable='/etc/apache2/sites-available/'
@@ -33,7 +34,7 @@ do
 done
 
 if [ "$rootDir" == "" ]; then
-	rootDir=${domain//./}
+	rootDir=${domain//./_}
 fi
 
 ### if root dir starts with '/', don't use /var/www as default starting point
@@ -105,7 +106,7 @@ if [ "$action" == 'create' ]
 		if [ "$owner" == "" ]; then
 			chown -R $(whoami):$(whoami) $rootDir
 		else
-			chown -R $owner:$owner $rootDir
+			chown -R $owner:$owngroup $rootDir
 		fi
 
 		### enable website
