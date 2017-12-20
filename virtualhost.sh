@@ -7,6 +7,7 @@ action=$1
 domain=$2
 rootDir=$3
 owner=$(who am i | awk '{print $1}')
+owngroup=$(id -g -n $owner)
 email='webmaster@localhost'
 sitesEnable='/etc/apache2/sites-enabled/'
 sitesAvailable='/etc/apache2/sites-available/'
@@ -33,7 +34,6 @@ do
 done
 
 if [ "$rootDir" == "" ]; then
-	#rootDir=${domain//./}
 	rootDir=$domain
 fi
 
