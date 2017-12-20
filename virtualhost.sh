@@ -10,7 +10,7 @@ owner=$(who am i | awk '{print $1}')
 email='webmaster@localhost'
 sitesEnable='/etc/apache2/sites-enabled/'
 sitesAvailable='/etc/apache2/sites-available/'
-userDir='/var/www/'
+userDir='/home/sng2c/www/'
 sitesAvailabledomain=$sitesAvailable$domain.conf
 
 ### don't modify from here unless you know what you are doing ####
@@ -33,8 +33,10 @@ do
 done
 
 if [ "$rootDir" == "" ]; then
-	rootDir=${domain//./}
+	#rootDir=${domain//./}
+	rootDir=$domain
 fi
+
 
 ### if root dir starts with '/', don't use /var/www as default starting point
 if [[ "$rootDir" =~ ^/ ]]; then
@@ -42,6 +44,7 @@ if [[ "$rootDir" =~ ^/ ]]; then
 fi
 
 rootDir=$userDir$rootDir
+publicDir=$rootDir/public
 
 if [ "$action" == 'create' ]
 	then
@@ -54,16 +57,19 @@ if [ "$action" == 'create' ]
 		### check if directory exists or not
 		if ! [ -d $rootDir ]; then
 			### create the directory
-			mkdir $rootDir
+			#mkdir $rootDir
+			
+			mkdir -p $publicDir
 			### give permission to root dir
-			chmod 755 $rootDir
+			#chmod 755 $rootDir
+			
 			### write test file in the new domain dir
-			if ! echo "<?php echo phpinfo(); ?>" > $rootDir/phpinfo.php
+			if ! echo "<?php echo phpinfo(); ?>" > $publicDir/phpinfo.php
 			then
-				echo $"ERROR: Not able to write in file $rootDir/phpinfo.php. Please check permissions"
+				echo $"ERROR: Not able to write in file $publicDir/phpinfo.php. Please check permissions"
 				exit;
 			else
-				echo $"Added content to $rootDir/phpinfo.php"
+				echo $"Added content to $publicDir/phpinfo.php"
 			fi
 		fi
 
@@ -73,12 +79,13 @@ if [ "$action" == 'create' ]
 			ServerAdmin $email
 			ServerName $domain
 			ServerAlias $domain
-			DocumentRoot $rootDir
+			DocumentRoot $publicDir
 			<Directory />
 				AllowOverride All
 			</Directory>
-			<Directory $rootDir>
-				Options Indexes FollowSymLinks MultiViews
+			<Directory $publicDir>
+				#Options Indexes FollowSymLinks MultiViews
+				Options FollowSymLinks MultiViews
 				AllowOverride all
 				Require all granted
 			</Directory>
@@ -103,9 +110,9 @@ if [ "$action" == 'create' ]
 		fi
 
 		if [ "$owner" == "" ]; then
-			chown -R $(whoami):$(whoami) $rootDir
+			chown -R $(whoami):www-data $rootDir
 		else
-			chown -R $owner:$owner $rootDir
+			chown -R $owner:www-data $rootDir
 		fi
 
 		### enable website
@@ -133,7 +140,7 @@ if [ "$action" == 'create' ]
 			### restart Apache
 			/etc/init.d/apache2 reload
 
-			### Delete virtual host rules files
+		:	### Delete virtual host rules files
 			rm $sitesAvailabledomain
 		fi
 

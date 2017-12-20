@@ -9,7 +9,7 @@ rootDir=$3
 owner=$(who am i | awk '{print $1}')
 sitesEnable='/etc/nginx/sites-enabled/'
 sitesAvailable='/etc/nginx/sites-available/'
-userDir='/var/www/'
+userDir='/home/sng2c/www/'
 
 if [ "$(whoami)" != 'root' ]; then
 	echo $"You have no permission to run $0 as non-root user. Use sudo"
@@ -29,7 +29,8 @@ do
 done
 
 if [ "$rootDir" == "" ]; then
-	rootDir=${domain//./}
+	#rootDir=${domain//./}
+  rootDir=$domain
 fi
 
 ### if root dir starts with '/', don't use /var/www as default starting point
@@ -38,6 +39,7 @@ if [[ "$rootDir" =~ ^/ ]]; then
 fi
 
 rootDir=$userDir$rootDir
+publicDir=$rootDir/public
 
 if [ "$action" == 'create' ]
 	then
@@ -48,25 +50,25 @@ if [ "$action" == 'create' ]
 		fi
 
 		### check if directory exists or not
-		if ! [ -d $userDir$rootDir ]; then
+		if ! [ -d $publicDir ]; then
 			### create the directory
-			mkdir $userDir$rootDir
+      mkdir -p $publicDir
 			### give permission to root dir
-			chmod 755 $userDir$rootDir
+      chmod -R 775 $rootDir
 			### write test file in the new domain dir
-			if ! echo "<?php echo phpinfo(); ?>" > $userDir$rootDir/phpinfo.php
+			if ! echo "<?php echo phpinfo(); ?>" > $publicDir/phpinfo.php
 				then
-					echo $"ERROR: Not able to write in file $userDir/$rootDir/phpinfo.php. Please check permissions."
+					echo $"ERROR: Not able to write in file $publicDir/phpinfo.php. Please check permissions."
 					exit;
 			else
-					echo $"Added content to $userDir$rootDir/phpinfo.php."
+					echo $"Added content to $rootDir/phpinfo.php."
 			fi
 		fi
 
 		### create virtual host rules file
 		if ! echo "server {
 			listen   80;
-			root $userDir$rootDir;
+			root $publicDir;
 			index index.php index.html index.htm;
 			server_name $domain;
 
@@ -76,30 +78,22 @@ if [ "$action" == 'create' ]
 				expires max;
 			}
 
-			# removes trailing slashes (prevents SEO duplicate content issues)
-			if (!-d \$request_filename) {
-				rewrite ^/(.+)/\$ /\$1 permanent;
-			}
+      location / {
+            try_files \$uri /index.php\$is_args\$args;
+      }
 
-			# unless the request is for a valid file (image, js, css, etc.), send to bootstrap
-			if (!-e \$request_filename) {
-				rewrite ^/(.*)\$ /index.php?/\$1 last;
-				break;
-			}
-
-			# removes trailing 'index' from all controllers
-			if (\$request_uri ~* index/?\$) {
-				rewrite ^/(.*)/index/?\$ /\$1 permanent;
-			}
 
 			# catch all
 			error_page 404 /index.php;
 
 			location ~ \.php$ {
-				fastcgi_split_path_info ^(.+\.php)(/.+)\$;
-				fastcgi_pass 127.0.0.1:9000;
-				fastcgi_index index.php;
-				include fastcgi_params;
+        try_files \$uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        include fastcgi_params;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param SCRIPT_NAME \$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/php7.0-fpm.sock; 
 			}
 
 			location ~ /\.ht {
@@ -124,9 +118,9 @@ if [ "$action" == 'create' ]
 		fi
 
 		if [ "$owner" == "" ]; then
-			chown -R $(whoami):www-data $userDir$rootDir
+			chown -R $(whoami):www-data $rootDir
 		else
-			chown -R $owner:www-data $userDir$rootDir
+			chown -R $owner:www-data $rootDir
 		fi
 
 		### enable website
@@ -136,7 +130,7 @@ if [ "$action" == 'create' ]
 		service nginx restart
 
 		### show the finished message
-		echo -e $"Complete! \nYou now have a new Virtual Host \nYour new host is: http://$domain \nAnd its located at $userDir$rootDir"
+		echo -e $"Complete! \nYou now have a new Virtual Host \nYour new host is: http://$domain \nAnd its located at $publicDir"
 		exit;
 	else
 		### check whether domain already exists
@@ -159,13 +153,13 @@ if [ "$action" == 'create' ]
 		fi
 
 		### check if directory exists or not
-		if [ -d $userDir$rootDir ]; then
+		if [ -d $rootDir ]; then
 			echo -e $"Delete host root directory ? (s/n)"
 			read deldir
 
 			if [ "$deldir" == 's' -o "$deldir" == 'S' ]; then
 				### Delete the directory
-				rm -rf $userDir$rootDir
+				rm -rf $rootDir
 				echo -e $"Directory deleted"
 			else
 				echo -e $"Host directory conserved"
